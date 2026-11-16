@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小五中文尋寶大冒險 - 地圖尋寶版</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts 圓體字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- 引入 Tone.js 用於航海冒險 BGM 音樂與音效 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0284c7; /* 亮藍色海洋背景 */
+            color: #1e293b;
+            overflow-x: hidden;
+        }
+
+        /* 羊皮紙鋸齒邊框外框 */
+        .treasure-map-frame {
+            background-color: #fef3c7;
+            background-image: radial-gradient(#fde68a 15%, transparent 16%), radial-gradient(#fde68a 15%, transparent 16%);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            border: 12px solid #b45309;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), inset 0 0 40px rgba(180, 83, 9, 0.3);
+        }
+
+        /* 彈跳動畫 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(1deg); }
+        }
+        .animate-float {
+            animation: float 3s infinite ease-in-out;
+        }
+
+        @keyframes celebrate {
+            0% { transform: scale(1) rotate(0deg); }
+            25% { transform: scale(1.15) rotate(-6deg); }
+            50% { transform: scale(1.15) rotate(6deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .animate-celebrate {
+            animation: celebrate 0.5s ease-in-out;
+        }
+
+        .btn-cartoon {
+            transition: all 0.15s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
+        }
+        .btn-cartoon:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4">
+
+    <!-- ==================== 頂部導航與航海控制列 ==================== -->
+    <header class="w-full max-w-5xl bg-amber-900/90 text-white rounded-2xl shadow-lg p-4 mb-4 backdrop-blur-sm border-4 border-amber-600 flex flex-wrap items-center justify-between gap-3 z-30">
+        <div class="flex items-center gap-3">
+            <span class="text-4xl bg-amber-800 p-2 rounded-2xl border-2 border-amber-500">🏴‍☠️</span>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-black text-amber-200 tracking-wide">小五中文：尋寶大冒險地圖</h1>
+                <p class="text-xs sm:text-sm text-amber-300 font-bold">通關五大知識島嶼，解鎖終極寶藏箱！</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- 航海音樂開關按鈕 -->
+            <button onclick="toggleBGM()" id="bgm-btn" class="btn-cartoon bg-amber-400 hover:bg-amber-300 text-amber-950 px-4 py-2 rounded-xl font-black text-sm flex items-center gap-2">
+                <span id="bgm-icon">🔇</span>
+                <span id="bgm-text">開啟航海音樂</span>
+            </button>
+
+            <!-- 老師自由跳島按鈕 -->
+            <button onclick="toggleTeacherUnlock()" id="teacher-unlock-btn" class="btn-cartoon bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded-xl font-bold text-xs sm:text-sm">
+                👩‍🏫 老師模式 (自由跳島)
+            </button>
+
+            <!-- 星星積分器 -->
+            <div class="flex items-center gap-1.5 bg-amber-950 px-3 py-1.5 rounded-full border-2 border-amber-500 shadow-inner">
+                <span class="text-xl">⭐</span>
+                <span class="font-black text-lg text-amber-400" id="total-stars">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== 航海尋寶地圖主畫面 ==================== -->
+    <main class="w-full max-w-5xl treasure-map-frame rounded-3xl p-4 sm:p-8 relative min-h-[650px] flex flex-col justify-between overflow-hidden">
+
+        <!-- 地圖背景裝飾元素 (SVG 航海圖標) -->
+        <div class="absolute top-6 right-6 opacity-30 pointer-events-none">
+            <!-- 指南針玫瑰 -->
+            <svg width="100" height="100" viewBox="0 0 100 100" fill="#92400e">
+                <polygon points="50,0 55,40 50,50 45,40" />
+                <polygon points="50,100 55,60 50,50 45,60" />
+                <polygon points="0,50 40,55 50,50 40,45" />
+                <polygon points="100,50 60,55 50,50 60,45" />
+                <circle cx="50" cy="50" r="10" fill="#d97706" />
+            </svg>
+        </div>
+
+        <div class="absolute bottom-10 left-10 opacity-25 pointer-events-none text-6xl">
+            🦈 🌀 ⛵
+        </div>
+
+        <!-- 標題提示 -->
+        <div class="text-center relative z-10 mb-4">
+            <span class="bg-amber-600 text-amber-100 font-black px-5 py-1.5 rounded-full text-sm sm:text-base shadow-md border-2 border-amber-400">
+                🗺️ 點擊已解鎖的小島，展開中文知識挑戰！
+            </span>
+        </div>
+
+        <!-- ==================== 五座小島地圖佈局 ==================== -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 relative z-10 my-auto py-6">
+
+            <!-- 第 1 島：迷霧猜謎島 (引入：修辭 vs 寫作手法) -->
+            <div id="island-card-1" onclick="openIslandModal(1)" class="cursor-pointer bg-amber-50 hover:bg-amber-100 border-4 border-amber-600 rounded-3xl p-5 text-center shadow-lg transition transform hover:-translate-y-2 relative flex flex-col items-center justify-between min-h-[220px]">
+                <div class="absolute -top-3 -right-3 bg-amber-500 text-white font-black w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white">1</div>
+                <div class="text-5xl animate-float my-2">🏝️</div>
+                <div>
+                    <h3 class="font-black text-amber-900 text-lg mb-1">迷霧猜謎島</h3>
+                    <p class="text-xs font-bold text-amber-700">修辭 vs 寫作手法</p>
+                </div>
+                <div class="mt-3 w-full">
+                    <span id="status-1" class="block bg-amber-200 text-amber-900 font-black text-xs py-1 px-2 rounded-xl">⭐ 當前解鎖！</span>
+                </div>
+                <div id="lock-1" class="absolute inset-0 bg-slate-900/60 rounded-3xl backdrop-blur-[2px] flex flex-col items-center justify-center text-white font-bold text-sm" style="display:none;">
+                    <span class="text-3xl mb-1">🔒</span> 尚未解鎖
+                </div>
+            </div>
+
+            <!-- 第 2 島：智慧神木島 (說明手法 10題) -->
+            <div id="island-card-2" onclick="openIslandModal(2)" class="cursor-pointer bg-emerald-50 hover:bg-emerald-100 border-4 border-emerald-600 rounded-3xl p-5 text-center shadow-lg transition transform hover:-translate-y-2 relative flex flex-col items-center justify-between min-h-[220px] opacity-65 grayscale">
+                <div class="absolute -top-3 -right-3 bg-emerald-600 text-white font-black w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white">2</div>
+                <div class="text-5xl animate-float my-2">🌴</div>
+                <div>
+                    <h3 class="font-black text-emerald-900 text-lg mb-1">智慧神木島</h3>
+                    <p class="text-xs font-bold text-emerald-700">舉例與分類說明 (10題)</p>
+                </div>
+                <div class="mt-3 w-full">
+                    <span id="status-2" class="block bg-emerald-200 text-emerald-900 font-black text-xs py-1 px-2 rounded-xl">🔒 未解鎖</span>
+                </div>
+                <div id="lock-2" class="absolute inset-0 bg-slate-900/60 rounded-3xl backdrop-blur-[2px] flex flex-col items-center justify-center text-white font-bold text-sm">
+                    <span class="text-3xl mb-1">🔒</span> 尚未解鎖
+                </div>
+            </div>
+
+            <!-- 第 3 島：百變角色島 (人物描寫 10題) -->
+            <div id="island-card-3" onclick="openIslandModal(3)" class="cursor-pointer bg-sky-50 hover:bg-sky-100 border-4 border-sky-600 rounded-3xl p-5 text-center shadow-lg transition transform hover:-translate-y-2 relative flex flex-col items-center justify-between min-h-[220px] opacity-65 grayscale">
+                <div class="absolute -top-3 -right-3 bg-sky-600 text-white font-black w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white">3</div>
+                <div class="text-5xl animate-float my-2">🏔️</div>
+                <div>
+                    <h3 class="font-black text-sky-900 text-lg mb-1">百變角色島</h3>
+                    <p class="text-xs font-bold text-sky-700">人物描寫特訓 (10題)</p>
+                </div>
+                <div class="mt-3 w-full">
+                    <span id="status-3" class="block bg-sky-200 text-sky-900 font-black text-xs py-1 px-2 rounded-xl">🔒 未解鎖</span>
+                </div>
+                <div id="lock-3" class="absolute inset-0 bg-slate-900/60 rounded-3xl backdrop-blur-[2px] flex flex-col items-center justify-center text-white font-bold text-sm">
+                    <span class="text-3xl mb-1">🔒</span> 尚未解鎖
+                </div>
+            </div>
+
+            <!-- 第 4 島：修辭火山島 (修辭特訓 10題) -->
+            <div id="island-card-4" onclick="openIslandModal(4)" class="cursor-pointer bg-purple-50 hover:bg-purple-100 border-4 border-purple-600 rounded-3xl p-5 text-center shadow-lg transition transform hover:-translate-y-2 relative flex flex-col items-center justify-between min-h-[220px] opacity-65 grayscale">
+                <div class="absolute -top-3 -right-3 bg-purple-600 text-white font-black w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white">4</div>
+                <div class="text-5xl animate-float my-2">🌋</div>
+                <div>
+                    <h3 class="font-black text-purple-900 text-lg mb-1">修辭火山島</h3>
+                    <p class="text-xs font-bold text-purple-700">十大修辭辨識 (10題)</p>
+                </div>
+                <div class="mt-3 w-full">
+                    <span id="status-4" class="block bg-purple-200 text-purple-900 font-black text-xs py-1 px-2 rounded-xl">🔒 未解鎖</span>
+                </div>
+                <div id="lock-4" class="absolute inset-0 bg-slate-900/60 rounded-3xl backdrop-blur-[2px] flex flex-col items-center justify-center text-white font-bold text-sm">
+                    <span class="text-3xl mb-1">🔒</span> 尚未解鎖
+                </div>
+            </div>
+
+            <!-- 第 5 島：黃金寶藏洞窟 (終極寶藏) -->
+            <div id="island-card-5" onclick="openIslandModal(5)" class="cursor-pointer bg-yellow-50 hover:bg-yellow-100 border-4 border-amber-500 rounded-3xl p-5 text-center shadow-lg transition transform hover:-translate-y-2 relative flex flex-col items-center justify-between min-h-[220px] opacity-65 grayscale">
+                <div class="absolute -top-3 -right-3 bg-amber-600 text-white font-black w-8 h-8 rounded-full flex items-center justify-center shadow-md border-2 border-white">5</div>
+                <div class="text-5xl animate-float my-2">👑</div>
+                <div>
+                    <h3 class="font-black text-amber-900 text-lg mb-1">黃金寶藏洞窟</h3>
+                    <p class="text-xs font-bold text-amber-700">終極綜合試煉 (10題)</p>
+                </div>
+                <div class="mt-3 w-full">
+                    <span id="status-5" class="block bg-yellow-200 text-amber-900 font-black text-xs py-1 px-2 rounded-xl">🔒 未解鎖</span>
+                </div>
+                <div id="lock-5" class="absolute inset-0 bg-slate-900/60 rounded-3xl backdrop-blur-[2px] flex flex-col items-center justify-center text-white font-bold text-sm">
+                    <span class="text-3xl mb-1">🔒</span> 尚未解鎖
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 航海進度與鑰匙收集面板 -->
+        <div class="bg-amber-100/90 border-2 border-amber-400 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 relative z-10 mt-4">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🗝️</span>
+                <span class="font-black text-amber-900">航海進度：已收集 <span id="key-count">0</span> / 5 把鑰匙</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="flex gap-1">
+                    <span id="key-1" class="text-2xl opacity-30 grayscale">🗝️</span>
+                    <span id="key-2" class="text-2xl opacity-30 grayscale">🗝️</span>
+                    <span id="key-3" class="text-2xl opacity-30 grayscale">🗝️</span>
+                    <span id="key-4" class="text-2xl opacity-30 grayscale">🗝️</span>
+                    <span id="key-5" class="text-2xl opacity-30 grayscale">👑</span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== 任務彈跳視窗 (Modal) ==================== -->
+    <div id="island-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-amber-50 border-8 border-amber-600 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 relative shadow-2xl">
+            <!-- 關閉按鈕 -->
+            <button onclick="closeIslandModal()" class="absolute top-4 right-4 bg-rose-500 hover:bg-rose-600 text-white font-black w-10 h-10 rounded-full text-xl flex items-center justify-center shadow-md">
+                ✕
+            </button>
+
+            <!-- 視窗標題 -->
+            <div class="flex items-center gap-3 mb-6 pb-3 border-b-4 border-amber-200">
+                <span id="modal-icon" class="text-4xl">🏴‍☠️</span>
+                <div>
+                    <h2 id="modal-title" class="text-2xl font-black text-amber-950">小島任務</h2>
+                    <p id="modal-subtitle" class="text-sm font-bold text-amber-800">完成挑戰即可獲得鑰匙！</p>
+                </div>
+            </div>
+
+            <!-- 動態任務內容載入區 -->
+            <div id="modal-body" class="space-y-6">
+                <!-- 由 JavaScript 依據關卡動態生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 訊息提示框 (Toast) -->
+    <div id="toast-box" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold shadow-2xl z-50 hidden text-center border-2 border-amber-400">
+    </div>
+
+    <!-- ==================== JavaScript 遊戲引擎與題庫 ==================== -->
+    <script>
+        const gameState = {
+            unlockedIsland: 1,
+            keysCollected: 0,
+            bgmPlaying: false
+        };
+
+        function updateMapUI() {
+            document.getElementById('key-count').textContent = gameState.keysCollected;
+            for (let i = 1; i <= 5; i++) {
+                const card = document.getElementById(`island-card-${i}`);
+                const lock = document.getElementById(`lock-${i}`);
+                const status = document.getElementById(`status-${i}`);
+                const key = document.getElementById(`key-${i}`);
+
+                if (i <= gameState.unlockedIsland) {
+                    card.classList.remove('opacity-65', 'grayscale');
+                    lock.style.display = 'none';
+                    status.textContent = i === gameState.unlockedIsland ? '⭐ 點擊登島！' : '✅ 已通關！';
+                    status.className = i === gameState.unlockedIsland ? 'block bg-amber-400 text-amber-950 font-black text-xs py-1 px-2 rounded-xl animate-pulse' : 'block bg-emerald-200 text-emerald-900 font-black text-xs py-1 px-2 rounded-xl';
+                } else {
+                    card.classList.add('opacity-65', 'grayscale');
+                    lock.style.display = 'flex';
+                }
+
+                if (i <= gameState.keysCollected) {
+                    key.classList.remove('opacity-30', 'grayscale');
+                } else {
+                    key.classList.add('opacity-30', 'grayscale');
+                }
+            }
+        }
+
+        function completeIsland(islandNum) {
+            playSuccessSound();
+            if (islandNum > gameState.keysCollected) {
+                gameState.keysCollected = islandNum;
+            }
+            if (islandNum + 1 > gameState.unlockedIsland && islandNum < 5) {
+                gameState.unlockedIsland = islandNum + 1;
+            }
+            updateMapUI();
+            showToast(`🎉 恭喜通關第 ${islandNum} 座小島！獲得寶藏鑰匙！🗝️`);
+            setTimeout(closeIslandModal, 1500);
+        }
+
+        function toggleTeacherUnlock() {
+            gameState.unlockedIsland = 5;
+            gameState.keysCollected = 5;
+            updateMapUI();
+            showToast('👩‍🏫 老師模式：所有小島已全數自由解鎖！');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-box');
+            toast.textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3500);
+        }
+
+        let currentOpenIsland = 1;
+
+        function openIslandModal(islandNum) {
+            if (islandNum > gameState.unlockedIsland) {
+                showToast('🔒 這座小島還在迷霧中！請先通關前面的島嶼！');
+                return;
+            }
+            currentOpenIsland = islandNum;
+            const modal = document.getElementById('island-modal');
+            const body = document.getElementById('modal-body');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+            const icon = document.getElementById('modal-icon');
+
+            modal.classList.remove('hidden');
+            body.innerHTML = '';
+
+            const configs = {
+                1: { title: '第 1 站：迷霧猜謎島', sub: '辨認術語屬於「修辭」還是「寫作手法」', icon: '🏝️', init: initIsland1 },
+                2: { title: '第 2 站：智慧神木島', sub: '說明手法段落辨識：舉例、分類、定義 (10題)', icon: '🌴', init: initIsland2 },
+                3: { title: '第 3 站：百變角色島', sub: '人物描寫特訓 (10題)', icon: '🏔️', init: initIsland3 },
+                4: { title: '第 4 站：修辭火山島', sub: '11種修辭辨識與應用 (10題)', icon: '🌋', init: initIsland4 },
+                5: { title: '終點：黃金寶藏洞窟', sub: '終極綜合試煉 (10題)', icon: '👑', init: initIsland5 }
+            };
+
+            const cfg = configs[islandNum];
+            title.textContent = cfg.title;
+            subtitle.textContent = cfg.sub;
+            icon.textContent = cfg.icon;
+            cfg.init(body);
+        }
+
+        function closeIslandModal() {
+            document.getElementById('island-modal').classList.add('hidden');
+            updateMapUI();
+        }
+
+        // Tone.js 航海背景音樂
+        let synth, bgmLoop;
+        function toggleBGM() {
+            const btn = document.getElementById('bgm-btn');
+            const icon = document.getElementById('bgm-icon');
+            const text = document.getElementById('bgm-text');
+
+            if (!gameState.bgmPlaying) {
+                Tone.start();
+                synth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.5 }
+                }).toDestination();
+
+                const notes = ['C4', 'E4', 'G4', 'B4', 'C5', 'G4', 'E4', 'D4'];
+                let step = 0;
+                bgmLoop = new Tone.Loop(time => {
+                    synth.triggerAttackRelease(notes[step % notes.length], '8n', time);
+                    step++;
+                }, '4n').start(0);
+
+                Tone.Transport.bpm.value = 110;
+                Tone.Transport.start();
+
+                gameState.bgmPlaying = true;
+                icon.textContent = '🎵';
+                text.textContent = '關閉音樂';
+                showToast('🎵 航海冒險音樂已開啟！');
+            } else {
+                Tone.Transport.stop();
+                if (bgmLoop) bgmLoop.dispose();
+                gameState.bgmPlaying = false;
+                icon.textContent = '🔇';
+                text.textContent = '開啟音樂';
+                showToast('🔇 航海音樂已暫停。');
+            }
+        }
+
+        function playSuccessSound() {
+            try {
+                const sfx = new Tone.Synth().toDestination();
+                sfx.triggerAttackRelease('C5', '8n');
+                setTimeout(() => sfx.triggerAttackRelease('G5', '8n'), 150);
+            } catch(e) {}
+        }
+
+        // =====================================================================
+        // 第 1 島：迷霧猜謎島（純術語分類：修辭 vs 寫作手法）
+        // =====================================================================
+        const island1Data = [
+            { term: '【明喻、暗喻、排比】', answer: '修辭', explain: '這些都是常用來修飾文句、增強表達效果的「修辭」手法。' },
+            { term: '【舉例說明、分類說明】', answer: '寫作手法', explain: '這些是用來條理清晰地解說事物的「寫作手法」（說明手法）。' },
+            { term: '【心理描寫、行為描寫】', answer: '寫作手法', explain: '這些是透過人物的動作和內心來刻劃人物形象的「寫作手法」。' },
+            { term: '【擬人、誇張、反復】', answer: '修辭', explain: '這些是賦予物體生命或誇大特點的「修辭」手法。' },
+            { term: '【語言描寫、外貌描寫】', answer: '寫作手法', explain: '這些是描寫人物說話與容貌衣著的「寫作手法」。' }
+        ];
+        let i1Index = 0;
+
+        function initIsland1(container) {
+            i1Index = 0;
+            renderIsland1Question(container);
+        }
+
+        function renderIsland1Question(container) {
+            if (i1Index >= island1Data.length) {
+                container.innerHTML = `
+                    <div class="text-center py-8 space-y-4">
+                        <div class="text-6xl animate-bounce">🗝️</div>
+                        <h3 class="text-3xl font-black text-amber-900">恭喜通過迷霧猜謎島！</h3>
+                        <p class="text-lg font-bold text-slate-700">你成功辨認了所有基礎概念！</p>
+                        <button onclick="completeIsland(1)" class="btn-cartoon bg-amber-500 hover:bg-amber-600 text-white font-black px-8 py-3 rounded-2xl text-xl">
+                            取得第一把鑰匙！🗝️
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            const curr = island1Data[i1Index];
+            container.innerHTML = `
+                <div class="text-center">
+                    <span class="bg-amber-200 text-amber-900 font-black px-4 py-1.5 rounded-full text-sm">第 ${i1Index + 1} / ${island1Data.length} 題</span>
+                    <div class="bg-white rounded-3xl p-8 my-6 border-4 border-amber-300 shadow-sm">
+                        <p class="text-sm font-bold text-slate-500 mb-2">請問下面這個知識點屬於哪一類？</p>
+                        <p class="text-3xl font-black text-amber-900 my-4">${curr.term}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                        <button onclick="checkIsland1('修辭')" class="btn-cartoon bg-sky-500 hover:bg-sky-600 text-white font-black py-4 rounded-2xl text-2xl">
+                            🎨 修辭
+                        </button>
+                        <button onclick="checkIsland1('寫作手法')" class="btn-cartoon bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-2xl text-2xl">
+                            ✍️ 寫作手法
+                        </button>
+                    </div>
+                    <div id="i1-fb" class="mt-4 font-bold text-lg"></div>
+                </div>
+            `;
+        }
+
+        function checkIsland1(choice) {
+            const curr = island1Data[i1Index];
+            const fb = document.getElementById('i1-fb');
+            if (choice === curr.answer) {
+                window.totalStars = (window.totalStars || 0) + 1;
+                document.getElementById('total-stars').textContent = window.totalStars;
+                fb.innerHTML = `🎉 答對了！${curr.explain}`;
+                fb.className = 'mt-4 font-black text-xl text-emerald-600';
+                setTimeout(() => {
+                    i1Index++;
+                    renderIsland1Question(document.getElementById('modal-body'));
+                }, 1200);
+            } else {
+                fb.innerHTML = `❌ 不對喔！正確答案是「${curr.answer}」。${curr.explain}`;
+                fb.className = 'mt-4 font-black text-xl text-rose-600';
+            }
+        }
+
+        // =====================================================================
+        // 第 2 島：智慧神木島（說明手法：舉例、分類、定義，段落形式 70-100字，隨機選項）
+        // =====================================================================
+        const island2Data = [
+            {
+                text: '香港是一個充滿活力的國際大都市，擁有許多世界知名的消閒好去處。例如位於島嶼南部的香港海洋公園，結合了機動遊戲與珍稀海洋生物展覽；而位於大嶼山的香港迪士尼樂園，則為遊客帶來夢幻的童話體驗。這些著名景點每年都吸引數以百萬計的本地居民及海內外旅客前來參觀遊玩。',
+                type: '舉例說明'
+            },
+            {
+                text: '圖書館內的豐富藏書為了方便讀者借閱與查找，通常會按照書籍的性質與用途進行科學的分類。館藏主要可以劃分為三大類別：第一類是引人入勝的文學故事書，第二類是涵蓋科學與歷史知識的百科全書，第三類則是緊貼潮流的各類實用雜誌。這樣的分類讓圖書館的運作變得極具條理。',
+                type: '分類說明'
+            },
+            {
+                text: '所謂「環保」即是環境保護的簡稱，是指人類為了解決當前或潛在的環境問題，而採取各種有效措施以協調人類與環境的關係。這項工作不僅包括保護自然環境免受污染與破壞，更強調合理利用自然資源，讓地球的生態系統能夠達至長遠的平衡與可持續發展。',
+                type: '定義說明'
+            },
+            {
+                text: '中國傳統節日歷史悠久且文化內涵豐富，民間至今仍流傳著許多精彩的慶祝習俗。例如在農曆新年期間，家家戶戶都會貼上喜慶的揮春並派發利是；而在每年農曆八月十五的中秋節，人們則會一家人團聚在一起賞月並品嚐美味的月餅。這些生動的例子展現了中華文化的獨特魅力。',
+                type: '舉例說明'
+            },
+            {
+                text: '學校舉辦的課外活動種類繁多，為了讓同學們能根據自己的興趣發展潛能，校方將活動分成了不同的組別。主要類別包括了鍛鍊體能與團隊精神的體育類活動，培養藝術美感的音樂與視藝類活動，以及訓練邏輯思維的學術科技類活動。這些豐富的課程讓校園生活變得更多姿多彩。',
+                type: '分類說明'
+            },
+            {
+                text: '所謂「健康的飲食習慣」是指能夠維持人體正常生理功能並促進生長發育的合理膳食模式。它要求我們每天攝取適量的蛋白質、維生素、礦物質和碳水化合物，做到食物種類多樣化，並且避免暴飲暴食及過量攝取高糖高脂肪的食物。',
+                type: '定義說明'
+            },
+            {
+                text: '大自然中的動物世界奇妙無比，許多生物都有著獨特的生存本領與生活習性。例如在寒冷的南極冰原上，可愛的企鵝能夠成群結隊地適應極度低溫；而在廣袤的非洲大草原上，奔跑速度極快的獵豹則是捕捉獵物的高手。這些真實的自然現象令人嘆為觀止。',
+                type: '舉例說明'
+            },
+            {
+                text: '現代城市的垃圾處理是一門重要的學問，為了保護地球生態，垃圾通常會被妥善分類。主要的分類包括可回收再造的廢紙與金屬瓶罐、容易腐爛並可轉化為肥料的廚餘垃圾，以及無法再利用需要焚燒或填埋的一般垃圾。落實分類能大幅減少環境負擔。',
+                type: '分類說明'
+            },
+            {
+                text: '所謂「成語」是漢語中經過長期歷史沉澱與錘鍊而形成的固定詞組，通常具有深刻的歷史故事或哲理。它的結構嚴謹且言簡意駭，例如「刻舟求劍」、「守株待兔」等，短短幾個字就能表達出豐富的意思，是中國古代文學寶庫中的一顆璀璨明珠。',
+                type: '定義說明'
+            },
+            {
+                text: '中國的四大發明對世界文明的發展起到了巨大的推動作用，對人類歷史影響深遠。例如用來傳播知識的造紙術與印刷術，徹底改變了人類記錄歷史的方式；而用於航海定向的指南針與威力巨大的火藥，也促進了全球貿易與科學技術的跨越式進步。',
+                type: '舉例說明'
+            }
+        ];
+        let i2Index = 0;
+        let currentI2Options = [];
+        let currentI2CorrectIdx = 0;
+
+        function initIsland2(container) {
+            i2Index = 0;
+            renderIsland2Q(container);
+        }
+
+        function renderIsland2Q(container) {
+            if (i2Index >= island2Data.length) {
+                container.innerHTML = `
+                    <div class="text-center py-8 space-y-4">
+                        <div class="text-6xl animate-bounce">🗝️</div>
+                        <h3 class="text-3xl font-black text-emerald-900">成功征服智慧神木島！</h3>
+                        <button onclick="completeIsland(2)" class="btn-cartoon bg-emerald-600 hover:bg-emerald-700 text-white font-black px-8 py-3 rounded-2xl text-xl">
+                            取得第二把鑰匙！🗝️
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            const curr = island2Data[i2Index];
+            // 隨機排列選項，避免總是固定順序
+            const allOpts = ['舉例說明', '分類說明', '定義說明'];
+            // 隨機洗牌
+            const shuffled = [...allOpts].sort(() => Math.random() - 0.5);
+            currentI2Options = shuffled;
+            currentI2CorrectIdx = shuffled.indexOf(curr.type);
+
+            container.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="bg-emerald-200 text-emerald-900 font-black px-3 py-1 rounded-full text-sm">第 ${i2Index + 1} / 10 題</span>
+                        <span class="text-xs font-bold text-emerald-800">說明手法段落辨識</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border-2 border-emerald-300 shadow-sm mb-6">
+                        <p class="text-sm font-bold text-emerald-700 mb-2">📌 請閱讀以下段落，判斷它主要運用了哪種說明手法：</p>
+                        <p class="text-lg md:text-xl font-bold text-slate-800 leading-relaxed">${curr.text}</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        ${currentI2Options.map((opt, idx) => `
+                            <button onclick="checkIsland2(${idx})" class="btn-cartoon bg-white hover:bg-emerald-50 border-2 border-emerald-300 p-4 rounded-xl text-center font-bold text-lg text-emerald-950">
+                                ${['A','B','C'][idx]}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="i2-fb" class="mt-4 text-center font-black text-lg"></div>
+                </div>
+            `;
+        }
+
+        function checkIsland2(choiceIdx) {
+            const fb = document.getElementById('i2-fb');
+            if (choiceIdx === currentI2CorrectIdx) {
+                window.totalStars = (window.totalStars || 0) + 1;
+                document.getElementById('total-stars').textContent = window.totalStars;
+                fb.textContent = '🎉 答對了！';
+                fb.className = 'mt-4 text-center font-black text-lg text-emerald-600';
+                setTimeout(() => {
+                    i2Index++;
+                    renderIsland2Q(document.getElementById('modal-body'));
+                }, 900);
+            } else {
+                fb.textContent = `❌ 不對喔！正確答案是「${currentI2Options[currentI2CorrectIdx]}」`;
+                fb.className = 'mt-4 text-center font-black text-lg text-rose-600';
+            }
+        }
+
+        // =====================================================================
+        // 第 3 島：百變角色島（人物描寫 10題，隨機選項）
+        // =====================================================================
+        const island3Data = [
+            { q: '「請大家安靜，準備開始默書。」老師嚴肅地說。', ans: '語言描寫' },
+            { q: '「爺爺的額頭上刻滿了深深的皺紋，雙手佈滿老繭。」', ans: '外貌描寫' },
+            { q: '「他接過獎盃，激動得雙手微微發抖，連忙向評判鞠躬。」', ans: '行為描寫' },
+            { q: '「望著漆黑的走廊，我心裡發毛，生怕後面有怪獸追來。」', ans: '心理描寫' },
+            { q: '「妹妹紮著兩條馬尾辮，笑起來臉上有一對可愛的小酒窩。」', ans: '外貌描寫' },
+            { q: '「『太好了！我們隊贏了！』大家歡呼著跳起來。」', ans: '語言描寫' },
+            { q: '「眼看就要遲到了，我急得像熱鍋上的螞蟻，快步跑向學校。」', ans: '行為描寫' },
+            { q: '「考試成績派發前，我心裡七上八下，生怕名落孫山。」', ans: '心理描寫' },
+            { q: '「媽媽穿著一身整潔的藍色制服，臉上掛著親切的微笑。」', ans: '外貌描寫' },
+            { q: '「哥哥拍拍我的肩膀說：『不用怕，有我在這裡！』」', ans: '語言描寫' }
+        ];
+        let i3Index = 0;
+        let currentI3Options = [];
+        let currentI3CorrectIdx = 0;
+
+        function initIsland3(container) {
+            i3Index = 0;
+            renderIsland3Q(container);
+        }
+
+        function renderIsland3Q(container) {
+            if (i3Index >= island3Data.length) {
+                container.innerHTML = `
+                    <div class="text-center py-8 space-y-4">
+                        <div class="text-6xl animate-bounce">🗝️</div>
+                        <h3 class="text-3xl font-black text-sky-900">成功通關百變角色島！</h3>
+                        <button onclick="completeIsland(3)" class="btn-cartoon bg-sky-600 hover:bg-sky-700 text-white font-black px-8 py-3 rounded-2xl text-xl">
+                            取得第三把鑰匙！🗝️
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            const curr = island3Data[i3Index];
+            const allOpts = ['行為描寫', '心理描寫', '語言描寫', '外貌描寫'];
+            const shuffled = [...allOpts].sort(() => Math.random() - 0.5);
+            currentI3Options = shuffled;
+            currentI3CorrectIdx = shuffled.indexOf(curr.ans);
+
+            container.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="bg-sky-200 text-sky-900 font-black px-3 py-1 rounded-full text-sm">第 ${i3Index + 1} / 10 題</span>
+                        <span class="text-xs font-bold text-sky-800">人物描寫辨識</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border-2 border-sky-300 shadow-sm mb-6">
+                        <p class="text-xl sm:text-2xl font-bold text-slate-800">${curr.q}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${currentI3Options.map((opt, idx) => `
+                            <button onclick="checkIsland3(${idx})" class="btn-cartoon bg-white hover:bg-sky-50 border-2 border-sky-300 p-4 rounded-xl font-bold text-lg text-sky-950 text-left">
+                                ${['A','B','C','D'][idx]}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="i3-fb" class="mt-4 text-center font-black text-lg"></div>
+                </div>
+            `;
+        }
+
+        function checkIsland3(choiceIdx) {
+            const fb = document.getElementById('i3-fb');
+            if (choiceIdx === currentI3CorrectIdx) {
+                window.totalStars = (window.totalStars || 0) + 1;
+                document.getElementById('total-stars').textContent = window.totalStars;
+                fb.textContent = '🎉 答對了！';
+                fb.className = 'mt-4 text-center font-black text-lg text-emerald-600';
+                setTimeout(() => {
+                    i3Index++;
+                    renderIsland3Q(document.getElementById('modal-body'));
+                }, 900);
+            } else {
+                fb.textContent = `❌ 不對喔！正確答案是「${currentI3Options[currentI3CorrectIdx]}」`;
+                fb.className = 'mt-4 text-center font-black text-lg text-rose-600';
+            }
+        }
+
+        // =====================================================================
+        // 第 4 島：修辭火山島（修辭特訓 10題，隨機選項）
+        // =====================================================================
+        const island4Data = [
+            { q: '「彎彎的月亮像一隻小船掛在夜空中。」', correct: '明喻', pool: ['明喻', '暗喻', '擬人', '誇張'] },
+            { q: '「老師是辛勤的園丁，細心培育我們。」', correct: '暗喻', pool: ['明喻', '暗喻', '排比', '反復'] },
+            { q: '「小鳥在樹枝上快樂地唱歌跳舞。」', correct: '擬人', pool: ['擬人', '明喻', '暗喻', '借代'] },
+            { q: '「教室裡安靜得連一根針掉在地上也聽得見。」', correct: '誇張', pool: ['誇張', '排比', '反復', '對偶'] },
+            { q: '「愛心是冬日的暖陽，愛心是沙漠的甘泉，愛心是黑夜的明燈。」', correct: '排比', pool: ['排比', '擬人', '誇張', '明喻'] },
+            { q: '「盼望着，盼望着，東風來了，春天的腳步近了。」', correct: '反復', pool: ['反復', '擬人', '暗喻', '誇張'] },
+            { q: '「秋天到了，樹葉變成了一隻隻飛舞的金黃蝴蝶。」', correct: '暗喻', pool: ['暗喻', '明喻', '排比', '對偶'] },
+            { q: '「大樹伸出粗壯的手臂，為途人遮擋猛烈的陽光。」', correct: '擬人', pool: ['擬人', '誇張', '明喻', '暗喻'] },
+            { q: '「他的書包重得像一座大山，壓得他透不過氣來。」', correct: '誇張', pool: ['明喻', '誇張', '暗喻', '反復'] },
+            { q: '「藍色的海洋無邊無際，彷彿一塊巨大的藍寶石。」', correct: '明喻', pool: ['明喻', '暗喻', '排比', '擬人'] }
+        ];
+        let i4Index = 0;
+        let currentI4Options = [];
+        let currentI4CorrectIdx = 0;
+
+        function initIsland4(container) {
+            i4Index = 0;
+            renderIsland4Q(container);
+        }
+
+        function renderIsland4Q(container) {
+            if (i4Index >= island4Data.length) {
+                container.innerHTML = `
+                    <div class="text-center py-8 space-y-4">
+                        <div class="text-6xl animate-bounce">🗝️</div>
+                        <h3 class="text-3xl font-black text-purple-900">成功征服修辭火山島！</h3>
+                        <button onclick="completeIsland(4)" class="btn-cartoon bg-purple-600 hover:bg-purple-700 text-white font-black px-8 py-3 rounded-2xl text-xl">
+                            取得第四把鑰匙！🗝️
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            const curr = island4Data[i4Index];
+            const shuffled = [...curr.pool].sort(() => Math.random() - 0.5);
+            currentI4Options = shuffled;
+            currentI4CorrectIdx = shuffled.indexOf(curr.correct);
+
+            container.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="bg-purple-200 text-purple-900 font-black px-3 py-1 rounded-full text-sm">第 ${i4Index + 1} / 10 題</span>
+                        <span class="text-xs font-bold text-purple-800">修辭手法辨識</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border-2 border-purple-300 shadow-sm mb-6">
+                        <p class="text-xl sm:text-2xl font-bold text-slate-800">${curr.q}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        ${currentI4Options.map((opt, idx) => `
+                            <button onclick="checkIsland4(${idx})" class="btn-cartoon bg-white hover:bg-purple-50 border-2 border-purple-300 p-4 rounded-xl font-bold text-lg text-purple-950 text-left">
+                                ${['A','B','C','D'][idx]}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="i4-fb" class="mt-4 text-center font-black text-lg"></div>
+                </div>
+            `;
+        }
+
+        function checkIsland4(choiceIdx) {
+            const fb = document.getElementById('i4-fb');
+            if (choiceIdx === currentI4CorrectIdx) {
+                window.totalStars = (window.totalStars || 0) + 1;
+                document.getElementById('total-stars').textContent = window.totalStars;
+                fb.textContent = '🎉 答對了！';
+                fb.className = 'mt-4 text-center font-black text-lg text-emerald-600';
+                setTimeout(() => {
+                    i4Index++;
+                    renderIsland4Q(document.getElementById('modal-body'));
+                }, 900);
+            } else {
+                fb.textContent = `❌ 不對喔！正確答案是「${currentI4Options[currentI4CorrectIdx]}」`;
+                fb.className = 'mt-4 text-center font-black text-lg text-rose-600';
+            }
+        }
+
+        // =====================================================================
+        // 第 5 島：黃金寶藏洞窟（綜合測驗 10題，隨機選項）
+        // =====================================================================
+        const island5Data = [
+            { q: '「圖書館裡十分安靜，同學們有的看書，有的做筆記，有的查資料。」這是甚麼修辭？', correct: '排比', pool: ['排比', '誇張', '反復', '暗喻'] },
+            { q: '「運動員按項目可分為田徑選手、游泳選手和球類選手。」這是甚麼說明手法？', correct: '分類說明', pool: ['舉例說明', '分類說明', '行為描寫', '擬人'] },
+            { q: '「他看見老奶奶提著重物，立刻跑上前幫忙。」這是甚麼描寫？', correct: '行為描寫', pool: ['外貌描寫', '心理描寫', '行為描寫', '語言描寫'] },
+            { q: '下列哪一句是「暗喻」？', correct: '失敗是成功之母。', pool: ['弟弟的臉紅得像蘋果。', '失敗是成功之母。', '微風撫摸著我的臉。', '我等得花兒也謝了。'] },
+            { q: '「香港有不少離島，例如大嶼山和長洲。」這是甚麼說明手法？', correct: '舉例說明', pool: ['舉例說明', '分類說明', '語言描寫', '明喻'] },
+            { q: '「爺爺雙手佈滿老繭，額頭上刻滿皺紋。」這是甚麼描寫？', correct: '外貌描寫', pool: ['外貌描寫', '心理描寫', '行為描寫', '語言描寫'] },
+            { q: '「太陽公公露出了慈祥的笑臉。」這是甚麼修辭？', correct: '擬人', pool: ['擬人', '誇張', '暗喻', '排比'] },
+            { q: '「這座大廈高得快要衝破雲層了。」這是甚麼修辭？', correct: '誇張', pool: ['誇張', '排比', '明喻', '反復'] },
+            { q: '「『大家加油！我們一定能贏！』隊長大聲喊道。」這是甚麼描寫？', correct: '語言描寫', pool: ['語言描寫', '外貌描寫', '心理描寫', '行為描寫'] },
+            { q: '「知識是打開智慧大門的鑰匙。」這是甚麼修辭？', correct: '暗喻', pool: ['明喻', '暗喻', '擬人', '誇張'] }
+        ];
+        let i5Index = 0;
+        let currentI5Options = [];
+        let currentI5CorrectIdx = 0;
+
+        function initIsland5(container) {
+            i5Index = 0;
+            renderIsland5Q(container);
+        }
+
+        function renderIsland5Q(container) {
+            if (i5Index >= island5Data.length) {
+                container.innerHTML = `
+                    <div class="text-center py-6 space-y-4">
+                        <div class="text-7xl animate-bounce">👑📦✨</div>
+                        <h3 class="text-3xl font-black text-amber-900">寶箱已開啟！恭喜通關全部小島！</h3>
+                        <p class="text-lg font-bold text-slate-700">你集齊了所有鑰匙與黃金皇冠！獲得滿分！</p>
+                        <div class="bg-amber-100 p-4 rounded-2xl border-2 border-amber-400 inline-block font-black text-2xl text-amber-800">
+                            ⭐ 總得分：${window.totalStars || 45} 顆星星！
+                        </div>
+                        <div class="pt-2">
+                            <button onclick="location.reload()" class="btn-cartoon bg-amber-500 hover:bg-amber-600 text-white font-black px-8 py-3 rounded-2xl text-xl">
+                                🔄 重新展開航海冒險
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            const curr = island5Data[i5Index];
+            const shuffled = [...curr.pool].sort(() => Math.random() - 0.5);
+            currentI5Options = shuffled;
+            currentI5CorrectIdx = shuffled.indexOf(curr.correct);
+
+            container.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="bg-amber-200 text-amber-900 font-black px-3 py-1 rounded-full text-sm">終極試煉 第 ${i5Index + 1} / 10 題</span>
+                        <span class="text-xs font-bold text-amber-800">黃金寶藏挑戰</span>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border-2 border-amber-300 shadow-sm mb-6">
+                        <p class="text-xl sm:text-2xl font-bold text-slate-800">${curr.q}</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        ${currentI5Options.map((opt, idx) => `
+                            <button onclick="checkIsland5(${idx})" class="btn-cartoon bg-white hover:bg-amber-50 border-2 border-amber-300 p-4 rounded-xl text-left font-bold text-lg text-amber-950">
+                                ${['A','B','C','D'][idx]}. ${opt}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="i5-fb" class="mt-4 text-center font-black text-lg"></div>
+                </div>
+            `;
+        }
+
+        function checkIsland5(choiceIdx) {
+            const fb = document.getElementById('i5-fb');
+            if (choiceIdx === currentI5CorrectIdx) {
+                window.totalStars = (window.totalStars || 0) + 2;
+                document.getElementById('total-stars').textContent = window.totalStars;
+                fb.textContent = '🎉 答對了！加 2 顆星！';
+                fb.className = 'mt-4 text-center font-black text-lg text-emerald-600';
+                setTimeout(() => {
+                    i5Index++;
+                    renderIsland5Q(document.getElementById('modal-body'));
+                }, 900);
+            } else {
+                fb.textContent = `❌ 不對喔！正確答案是「${currentI5Options[currentI5CorrectIdx]}」`;
+                fb.className = 'mt-4 text-center font-black text-lg text-rose-600';
+            }
+        }
+
+        window.onload = function () {
+            updateMapUI();
+        };
+    </script>
+</body>
+</html>
