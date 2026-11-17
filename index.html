@@ -15,7 +15,10 @@
             font-family: 'Noto Sans TC', sans-serif;
             background-color: #0284c7; /* 亮藍色海洋背景 */
             color: #1e293b;
+            /* 確保網頁可以順暢上下捲動，底部預留充足空間防止被擋住 */
+            overflow-y: auto;
             overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* 羊皮紙鋸齒邊框外框 */
@@ -60,7 +63,7 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4">
+<body class="min-h-screen flex flex-col items-center justify-start p-3 sm:p-6 pb-20">
 
     <!-- ==================== 頂部導航與航海控制列 ==================== -->
     <header class="w-full max-w-5xl bg-amber-900/90 text-white rounded-2xl shadow-lg p-4 mb-4 backdrop-blur-sm border-4 border-amber-600 flex flex-wrap items-center justify-between gap-3 z-30">
@@ -93,7 +96,7 @@
     </header>
 
     <!-- ==================== 航海尋寶地圖主畫面 ==================== -->
-    <main class="w-full max-w-5xl treasure-map-frame rounded-3xl p-4 sm:p-8 relative min-h-[650px] flex flex-col justify-between overflow-hidden">
+    <main class="w-full max-w-5xl treasure-map-frame rounded-3xl p-4 sm:p-8 relative flex flex-col justify-between overflow-visible mb-8">
 
         <!-- 地圖背景裝飾元素 (SVG 航海圖標) -->
         <div class="absolute top-6 right-6 opacity-30 pointer-events-none">
@@ -117,7 +120,7 @@
         </div>
 
         <!-- ==================== 五座小島地圖佈局 ==================== -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 relative z-10 my-auto py-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 relative z-10 my-4 py-2">
 
             <!-- 第 1 島：迷霧猜謎島 -->
             <div id="island-card-1" onclick="openIslandModal(1)" class="cursor-pointer bg-amber-50 hover:bg-amber-100 border-4 border-amber-600 rounded-3xl p-5 text-center shadow-lg transition transform hover:-translate-y-2 relative flex flex-col items-center justify-between min-h-[220px]">
@@ -218,35 +221,35 @@
             </div>
         </div>
 
-        <!-- ==================== 課堂分組計分系統 ==================== -->
-        <div class="bg-amber-950/90 text-amber-100 border-4 border-amber-600 rounded-2xl p-4 mt-4 relative z-10 shadow-lg">
-            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div class="flex items-center gap-2">
-                    <span class="text-2xl">🏆</span>
-                    <h3 class="font-black text-lg text-amber-300">課堂分組計分板</h3>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="showLeaderboardModal()" class="btn-cartoon bg-yellow-400 hover:bg-yellow-300 text-amber-950 font-black px-3 py-1 rounded-xl text-xs">
-                        👑 查看龍虎榜
-                    </button>
-                    <button onclick="addGroup()" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-amber-950 font-black px-3 py-1 rounded-xl text-xs">
-                        ➕ 新增組別
-                    </button>
-                    <button onclick="resetGroups()" class="btn-cartoon bg-rose-600 hover:bg-rose-500 text-white font-black px-3 py-1 rounded-xl text-xs">
-                        🔄 歸零分數
-                    </button>
-                </div>
-            </div>
-            <div id="groups-container" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <!-- 由 JavaScript 動態生成組別 -->
-            </div>
-        </div>
-
     </main>
 
+    <!-- ==================== 課堂分組計分系統（獨立置於主地圖下方，確保捲動可見） ==================== -->
+    <div class="w-full max-w-5xl bg-amber-950/95 text-amber-100 border-4 border-amber-600 rounded-3xl p-5 mb-12 shadow-2xl relative z-20">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🏆</span>
+                <h3 class="font-black text-xl text-amber-300">課堂分組計分板</h3>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="showLeaderboardModal()" class="btn-cartoon bg-yellow-400 hover:bg-yellow-300 text-amber-950 font-black px-3.5 py-1.5 rounded-xl text-xs sm:text-sm">
+                    👑 查看龍虎榜
+                </button>
+                <button onclick="addGroup()" class="btn-cartoon bg-amber-500 hover:bg-amber-400 text-amber-950 font-black px-3.5 py-1.5 rounded-xl text-xs sm:text-sm">
+                    ➕ 新增組別
+                </button>
+                <button onclick="resetGroups()" class="btn-cartoon bg-rose-600 hover:bg-rose-500 text-white font-black px-3.5 py-1.5 rounded-xl text-xs sm:text-sm">
+                    🔄 歸零分數
+                </button>
+            </div>
+        </div>
+        <div id="groups-container" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <!-- 由 JavaScript 動態生成組別 -->
+        </div>
+    </div>
+
     <!-- ==================== 任務彈跳視窗 (Modal) ==================== -->
-    <div id="island-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-amber-50 border-8 border-amber-600 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 relative shadow-2xl">
+    <div id="island-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-amber-50 border-8 border-amber-600 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 relative shadow-2xl my-auto">
             <button onclick="closeIslandModal()" class="absolute top-4 right-4 bg-rose-500 hover:bg-rose-600 text-white font-black w-10 h-10 rounded-full text-xl flex items-center justify-center shadow-md">
                 ✕
             </button>
